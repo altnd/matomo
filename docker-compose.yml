@@ -1,1 +1,42 @@
 
+version: '3'
+services:
+  matomo-db:
+    image: mariadb
+    command: --max-allowed-packet=64MB
+    restart: unless-stopped
+    volumes:
+      - ./database:/var/lib/mysql
+    environment:
+      - MYSQL_RANDOM_ROOT_PASSWORD=${DBROOTPW:-password}
+      - MYSQL_PASSWORD=${DBPW:-password}
+      - MYSQL_DATABASE=${DBNAME:-matomo}
+      - MYSQL_USER=${DBUSER:-matomo}
+    networks:
+      - ${backend-net:-default}
+  matomo-app:
+    image: matomo:fpm-alpine
+    restart: unless-stopped
+    volumes:
+      - ./app:/var/www/html
+    environment:
+      - MATOMO_DATABASE_HOST=matomo-db
+      - MATOMO_DATABASE_ADAPTER=mysql
+      - MATOMO_DATABASE_TABLES_PREFIX=matomo_
+      - MATOMO_DATABASE_USERNAME=${DBUSER:-matomo}
+      - MATOMO_DATABASE_PASSWORD=${DBPW:-password}
+      - MATOMO_DATABASE_DBNAME=${DBNAME:-matomo}
+    networks:
+      - ${backend-net:-default}
+  matomo-web:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./app:/var/www/html:ro
+      - ./matomo.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ${backend-net:-default}
+      - ${external-net:-external}
+networks:
+  ${external-net:-external}:
+    external: true
